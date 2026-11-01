@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NFT Market</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #0f0f11;
+            --card-bg: #1c1c1e;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --accent-blue: #2ea6ff;
+            --ton-color: #0098ea;
+            --border-radius: 16px;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --border-color: #2c2c2e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            padding-bottom: 120px; /* Увеличили отступ, чтобы контент не залезал под плавающее меню */
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        /* --- Приветствие и шапка --- */
+        #welcome-screen { position: fixed; inset: 0; background: var(--bg-main); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease, visibility 0.5s; }
+        #welcome-screen.hidden { opacity: 0; visibility: hidden; }
+        .wave-icon { font-size: 80px; color: var(--text-muted); margin-bottom: 20px; animation: wave 2s infinite; transform-origin: 70% 70%; }
+        @keyframes wave { 0% { transform: rotate(0deg); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 30% { transform: rotate(14deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } 60% { transform: rotate(0deg); } 100% { transform: rotate(0deg); } }
+        .welcome-text { font-size: 24px; font-weight: 700; text-align: center; opacity: 0; animation: fadeInText 1s forwards 0.5s; }
+        @keyframes fadeInText { to { opacity: 1; transform: translateY(-10px); } }
+        
+        header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-shrink: 0; }
+        
+        .balance-widget { background: var(--card-bg); border-radius: 12px; padding: 10px 16px; display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border-color); }
+        .balance-label { font-size: 12px; color: var(--text-muted); }
+        .balance-value { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        
+        /* Стили для картинки логотипа TON */
+        .ton-icon { width: 18px; height: 18px; flex-shrink: 0; object-fit: contain; }
+
+        .lang-switcher { display: flex; gap: 4px; background: var(--card-bg); padding: 4px; border-radius: 12px; }
+        .lang-btn { background: transparent; border: none; color: var(--text-muted); font-size: 13px; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .lang-btn.active { background: var(--border-color); color: var(--text-main); }
+
+        .tab-content { display: none; animation: fadeIn 0.3s ease; flex-grow: 1; min-height: 0; }
+        .tab-content.active { display: flex; flex-direction: column; }
+        #tab-store.active, #tab-gifts.active, #tab-profile.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- ФИЛЬТРЫ --- */
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; flex-shrink: 0; padding-bottom: 5px; }
+        .filters::-webkit-scrollbar { display: none; }
+        .filter-btn { background: var(--card-bg); border: none; color: var(--text-main); padding: 12px 20px; border-radius: 12px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; transition: 0.2s; border: 1px solid transparent; }
+        .filter-btn:hover { background: var(--border-color); }
+        .filter-btn.active-filter { border-color: var(--accent-blue); background: rgba(46, 166, 255, 0.1); }
+        .filter-btn i { font-size: 12px; color: var(--text-muted); transition: 0.3s; }
+        .filter-btn.active-filter i { transform: rotate(180deg); color: var(--accent-blue); }
+        .search-bar { background: var(--card-bg); border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 24px; flex-shrink: 0; }
+        .search-bar input { background: transparent; border: none; color: var(--text-main); font-size: 16px; width: 100%; outline: none; }
+
+        /* --- СЕТКА --- */
+        .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        @media (min-width: 600px) { .grid-container { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+        @media (min-width: 900px) { .grid-container { grid-template-columns: repeat(4, 1fr); } }
+
+        .gift-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 10px; display: flex; flex-direction: column; cursor: pointer; border: 1px solid transparent; }
+        .gift-image-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; background: radial-gradient(circle at center, #2a2a2d 0%, #151517 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; overflow: hidden; }
+        .gift-image-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .gift-info { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; }
+        .gift-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gift-id { font-size: 11px; color: var(--text-muted); }
+        .gift-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+        .gift-price { font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 4px; }
+        .btn-buy { background: var(--accent-blue); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+        /* ========================================= */
+        /* --- ВЫЕЗЖАЮЩАЯ ШТОРКА СНИЗУ (BOTTOM SHEET) --- */
+        /* ========================================= */
+        .gift-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.3s;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .gift-sheet-overlay.active { opacity: 1; visibility: visible; }
+        
+        .gift-sheet {
+            background: var(--bg-main);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            border-radius: 24px 24px 0 0;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        }
+        .gift-sheet-overlay.active .gift-sheet { transform: translateY(0); }
+
+        .sheet-close-btn {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .sheet-image-wrapper { width: 100%; height: 350px; background: #151517; position: relative; flex-shrink: 0; }
+        .sheet-image-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .sheet-content { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; }
+
+        .sheet-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+        .sheet-title { font-size: 24px; font-weight: 700; }
+        
+        .sheet-collection { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-muted); margin-bottom: 20px; font-weight: 600; }
+        .sheet-collection i { color: var(--accent-blue); font-size: 16px; }
+
+        .sheet-price-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+        
+        .sheet-price-value { font-size: 32px; display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+        .sheet-price-value .price-number { font-weight: 800; }
+        .sheet-price-value .price-currency { font-size: 24px; font-weight: 500; }
+
+        .price-icon-large { width: 32px; height: 32px; object-fit: contain; }
+
+        .sheet-buy-btn {
+            width: 100%; background: var(--accent-blue); color: white; border: none; padding: 16px; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-bottom: 24px; transition: 0.2s;
+        }
+        .sheet-buy-btn:hover { background: #1e8ae6; }
+
+        .sheet-attrs-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+        .sheet-attrs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sheet-attr-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .sheet-attr-label { font-size: 12px; color: var(--accent-blue); font-weight: 600; }
+        .sheet-attr-value { font-size: 15px; font-weight: 600; color: var(--text-main); }
+
+        /* --- ФИЛЬТРЫ ШТОРКА --- */
+        .filter-sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 2000; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .filter-sheet-overlay.active { opacity: 1; visibility: visible; }
+        .filter-sheet { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--card-bg); border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-height: 80vh; display: flex; flex-direction: column; }
+        .filter-sheet-overlay.active .filter-sheet { transform: translateY(0); }
+        .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .sheet-header h3 { font-size: 20px; }
+        .sheet-close { background: transparent; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
+        .sheet-search { background: var(--bg-main); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .sheet-search input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; }
+        .sheet-options { overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .sheet-options::-webkit-scrollbar { display: none; }
+        .sheet-option { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: transparent; border-radius: 12px; cursor: pointer; transition: 0.2s; font-size: 16px; }
+        .sheet-option:hover { background: var(--border-color); }
+        .sheet-option input { display: none; }
+        .sheet-option .check-box { width: 20px; height: 20px; border: 2px solid var(--text-muted); border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .sheet-option input:checked + .check-box { background: var(--accent-blue); border-color: var(--accent-blue); }
+        .sheet-option input:checked + .check-box::after { content: '\\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: white; font-size: 12px; }
+        .sheet-footer { display: flex; gap: 12px; }
+        .sheet-footer button { flex: 1; padding: 16px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-clear { background: var(--border-color); color: white; }
+        .btn-apply { background: var(--accent-blue); color: white; }
+
+        /* --- ЧАТ --- */
+        .chat-container { display: flex; flex-direction: column; height: 100%; background: var(--card-bg); border-radius: var(--border-radius); overflow: hidden; position: relative; }
+        .chat-header { display: flex; align-items: center; padding: 16px; background: var(--border-color); border-bottom: 1px solid var(--bg-main); flex-shrink: 0; }
+        .chat-avatar { width: 40px; height: 40px; background: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; margin-right: 12px; }
+        .chat-info h3 { font-size: 16px; margin-bottom: 2px; }
+        .chat-info p { font-size: 12px; color: #4cd964; display: flex; align-items: center; gap: 4px; }
+        .chat-info p::before { content: ''; display: block; width: 6px; height: 6px; background: #4cd964; border-radius: 50%; }
+        .chat-header .tg-link { margin-left: auto; color: var(--text-muted); font-size: 20px; cursor: pointer; transition: 0.2s; }
+        .chat-messages { flex-grow: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: var(--bg-main); }
+        .message { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; position: relative; word-wrap: break-word; animation: msgPop 0.3s ease; }
+        @keyframes msgPop { from { opacity: 0; transform: scale(0.95) translateY(5px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .message.incoming { background: var(--border-color); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .message.outgoing { background: #2b5278; color: var(--text-main); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message-time { font-size: 10px; color: rgba(255, 255, 255, 0.5); float: right; margin: 6px 0 -2px 8px; }
+        .chat-input-area { display: flex; padding: 12px; background: var(--border-color); gap: 8px; flex-shrink: 0; }
+        .chat-input-area input { flex-grow: 1; background: var(--bg-main); border: none; border-radius: 20px; padding: 12px 16px; color: white; font-size: 15px; outline: none; }
+        .chat-send-btn { width: 44px; height: 44px; background: var(--accent-blue); border: none; border-radius: 50%; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; }
+
+        /* ========================================= */
+        /* --- НОВОЕ ПЛАВАЮЩЕЕ НИЖНЕЕ МЕНЮ --- */
+        /* ========================================= */
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 24px; /* Отступ от низа экрана */
+            left: 50%; 
+            transform: translateX(-50%); /* Центрирование */
+            width: calc(100% - 32px); /* Ширина с отступами по бокам */
+            max-width: 450px; /* Максимальная ширина для ПК */
+            background: rgba(28, 28, 30, 0.85); /* Полупрозрачный фон */
+            backdrop-filter: blur(16px); /* Сильное размытие (стекло) */
+            -webkit-backdrop-filter: blur(16px);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 8px 12px; /* Внутренние отступы */
+            border-radius: 28px; /* Сильное закругление (сглаженный прямоугольник) */
+            border: 1px solid rgba(255, 255, 255, 0.08); /* Тонкая светлая обводка */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Тень */
+            z-index: 100; 
+        }
+        
+        .nav-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            color: var(--text-muted); 
+            font-size: 11px; 
+            gap: 4px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+        }
+        
+        .nav-item i { font-size: 20px; transition: 0.2s; }
+        
+        .nav-item.active { 
+            color: var(--accent-blue); 
+            background: rgba(46, 166, 255, 0.12); /* Легкий фон для активной вкладки */
+        }
+        
+        .nav-item.active i { 
+            transform: translateY(-2px); 
+            filter: drop-shadow(0 0 8px rgba(46, 166, 255, 0.4)); 
+        }
+        
+        @media (min-width: 768px) {
+            .app-container { padding: 40px; padding-bottom: 120px; }
+            .filters { justify-content: flex-start; }
+            .filter-sheet { max-width: 500px; left: 50%; transform: translate(-50%, 100%); border-radius: 24px 24px 0 0; }
+            .filter-sheet-overlay.active .filter-sheet { transform: translate(-50%, 0); }
+            
+            .gift-sheet { border-radius: 24px; margin-bottom: 40px; max-width: 500px; }
+            .sheet-attrs-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sheet-attrs-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="welcome-screen">
+    <i class="fa-solid fa-hand wave-icon"></i>
+    <div class="welcome-text">Добро пожаловать в Rapture</div>
+</div>
+
+<div class="app-container">
+    <header>
+        <div class="balance-widget">
+            <span class="balance-label">Баланс</span>
+            <span class="balance-value">
+                <img src="Ton.png" class="ton-icon" alt="TON">
+                1.49 TON
+            </span>
+        </div>
+        
+        <div class="lang-switcher">
+            <button class="lang-btn active">RU</button>
+            <button class="lang-btn">EN</button>
+            <button class="lang-btn">KO</button>
+            <button class="lang-btn">ZH</button>
+        </div>
+    </header>
+
+    <div id="tab-store" class="tab-content active">
+        <div class="filters">
+            <button class="filter-btn" onclick="openFilter('collection')"><span>Коллекция</span> <i class="fa-solid fa-chevron-down"></i></button>
+            <button class="filter-btn" onclick="openFilter('model')"><span>Модель</span> <i class="fa-solid fa-chevron-down"></i></button>
+            <button class="filter-btn" onclick="openFilter('back')"><span>Фон</span> <i class="fa-solid fa-chevron-down"></i></button>
+            <button class="filter-btn" onclick="openFilter('symbol')"><span>Символ</span> <i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+        <div class="search-bar">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+            <input type="text" placeholder="Search by ID">
+        </div>
+        
+        <div class="grid-container" id="gifts-grid"></div>
+    </div>
+
+    <div id="tab-gifts" class="tab-content">
+        <h2 style="margin-bottom: 20px; font-size: 22px;">Мои подарки</h2>
+        <div style="background: var(--card-bg); border-radius: var(--border-radius); padding: 40px 20px; text-align: center;">
+            <div style="margin-bottom: 12px; font-size: 28px; color: var(--accent-blue);"><i class="fa-solid fa-gift"></i></div>
+            <h3 style="font-size: 18px;">Пока нет подарков</h3>
+        </div>
+    </div>
+
+    <div id="tab-support" class="tab-content">
+         <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-avatar"><i class="fa-solid fa-headset"></i></div>
+                <div class="chat-info"><h3>Служба поддержки</h3><p>Онлайн</p></div>
+                <i class="fa-brands fa-telegram tg-link"></i>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message incoming">Здравствуйте! Чем мы можем вам помочь?<span class="message-time">12:00</span></div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Напишите сообщение..." onkeypress="handleEnter(event)">
+                <button class="chat-send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-profile" class="tab-content">
+        <h2 style="margin-bottom: 20px; font-size: 22px;">Профиль</h2>
+        <div style="background: var(--card-bg); border-radius: var(--border-radius); padding: 24px; text-align: center;">
+            <div style="margin-bottom: 12px; font-size: 36px; color: var(--ton-color);"><i class="fa-solid fa-wallet"></i></div>
+            <h3>Баланс кошелька</h3>
+            <p style="color: var(--ton-color); font-size: 24px; font-weight: bold; margin-top: 8px;">0.00 TON</p>
+        </div>
+    </div>
+</div>
+
+<!-- ШТОРКА ФИЛЬТРОВ -->
+<div class="filter-sheet-overlay" id="filterOverlay" onclick="closeFilter(event)">
+    <div class="filter-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-header">
+            <h3 id="sheetTitle">Фильтр</h3>
+            <button class="sheet-close" onclick="closeFilter(event)"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="sheet-search">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+            <input type="text" id="sheetSearchInput" placeholder="Поиск..." oninput="filterSheetOptions()">
+        </div>
+        <div class="sheet-options" id="sheetOptions"></div>
+        <div class="sheet-footer">
+            <button class="btn-clear" onclick="clearCurrentFilter()">Сбросить</button>
+            <button class="btn-apply" onclick="applyFilters()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ВЫЕЗЖАЮЩАЯ ШТОРКА ДЕТАЛЕЙ NFT -->
+<div class="gift-sheet-overlay" id="giftSheetOverlay" onclick="closeGiftSheet(event)">
+    <div class="gift-sheet" onclick="event.stopPropagation()">
+        <button class="sheet-close-btn" onclick="closeGiftSheet(event)"><i class="fa-solid fa-xmark"></i></button>
+        
+        <div class="sheet-image-wrapper">
+            <img id="sheetGiftImage" src="" alt="Gift">
+        </div>
+
+        <div class="sheet-content">
+            <div class="sheet-title-row">
+                <h2 class="sheet-title" id="sheetGiftName">Name #123</h2>
+            </div>
+
+            <div class="sheet-collection">
+                <i class="fa-brands fa-telegram"></i> <span id="sheetGiftCollection">Collection</span> <i class="fa-solid fa-circle-check" style="color: var(--accent-blue); font-size: 14px;"></i>
+            </div>
+
+            <!-- ИЗМЕНЕНО НА ЦЕНА -->
+            <div class="sheet-price-label">ЦЕНА</div>
+            
+            <!-- ЦИФРА И ИКОНКА УВЕЛИЧЕНЫ, GRAM ЗАМЕНЕН НА TON -->
+            <div class="sheet-price-value">
+                <img src="Ton.png" class="price-icon-large" alt="TON">
+                <span class="price-number" id="sheetGiftPrice">0</span> 
+                <span class="price-currency">TON</span>
+            </div>
+
+            <button class="sheet-buy-btn" onclick="buyGiftSheet()">
+                <i class="fa-solid fa-plus"></i> Купить
+            </button>
+
+            <div class="sheet-attrs-title">Редкость и атрибуты</div>
+            
+            <div class="sheet-attrs-grid" id="sheetGiftAttributes">
+                <!-- Сюда JS вставит карточки атрибутов -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- НИЖНЕЕ МЕНЮ -->
+<nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('store', this)"><i class="fa-solid fa-store"></i><span>Магазин</span></div>
+    <div class="nav-item" onclick="switchTab('gifts', this)"><i class="fa-solid fa-gift"></i><span>Подарки</span></div>
+    <div class="nav-item" onclick="switchTab('support', this)"><i class="fa-solid fa-headset"></i><span>Поддержка</span></div>
+    <div class="nav-item" onclick="switchTab('profile', this)"><i class="fa-solid fa-user"></i><span>Профиль</span></div>
+</nav>
+
+<script>
+    // ==========================================
+    // --- БАЗА ПОДАРКОВ ---
+    // ==========================================
+    const giftsData = [
+        { 
+            id: '60143', 
+            name: 'Money Pot', 
+            price: 15.5, 
+            image: 'img/number1.jpg',
+            collection: 'Money Pots',
+            model: 'College Party', 
+            back: 'Black', 
+            symbol: 'Alkonost' 
+        },
+        { 
+            id: '11305', 
+            name: 'Fine Pen', 
+            price: 9.0, 
+            image: 'img/number3.jpg', 
+            collection: 'Fine Pens',
+            model: 'Mesh Maker', 
+            back: 'Steel Grey', 
+            symbol: 'Dice' 
+        },
+        { 
+            id: '411679', 
+            name: 'Chill Flame', 
+            price: 30.9, 
+            image: 'img/number4.jpg',
+            collection: 'Chill Flames',
+            model: 'Medieval', 
+            back: 'Black', 
+            symbol: 'Magic Hat' 
+        },
+        { 
+            id: '278859', 
+            name: 'Desk Calendar', 
+            price: 6.28, 
+            image: 'img/number5.jpg',
+            collection: 'Desk Calendars',
+            model: 'Purple Front', 
+            back: 'Pistachio', 
+            symbol: 'Chili' 
+        },
+        { 
+            id: '37019', 
+            name: 'Sakura Flower', 
+            price: 11.83, 
+            image: 'img/number6.jpg',
+            collection: 'Sakura Flowers',
+            model: 'Crimsonia', 
+            back: 'Jade Green', 
+            symbol: 'Unicorn Head' 
+        }
+    ];
+
+    let activeFilters = { collection: [], model: [], back: [], symbol: [] };
+    let currentFilterType = '';
+    let currentNft = null;
+
+    // ==========================================
+    // --- ОТРИСОВКА КАРТОЧЕК ---
+    // ==========================================
+    function renderGifts() {
+        const grid = document.getElementById('gifts-grid');
+        grid.innerHTML = '';
+
+        const filteredGifts = giftsData.filter(gift => {
+            const matchCollection = activeFilters.collection.length === 0 || activeFilters.collection.includes(gift.collection);
+            const matchModel = activeFilters.model.length === 0 || activeFilters.model.includes(gift.model);
+            const matchBack = activeFilters.back.length === 0 || activeFilters.back.includes(gift.back);
+            const matchSymbol = activeFilters.symbol.length === 0 || activeFilters.symbol.includes(gift.symbol);
+            return matchCollection && matchModel && matchBack && matchSymbol;
+        });
+
+        if (filteredGifts.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">Ничего не найдено</div>';
+            return;
+        }
+
+        filteredGifts.forEach(gift => {
+            const card = document.createElement('div');
+            card.className = 'gift-card';
+            card.onclick = () => openGiftSheet(gift);
+            
+            card.innerHTML = `
+                <div class="gift-image-wrapper">
+                    <img src="${gift.image}" alt="${gift.name}" onerror="this.src='https://placehold.co/320x320.jpg/1c1c1e/ffffff?text=No+Image'">
+                </div>
+                <div class="gift-info">
+                    <div class="gift-name">${gift.name}</div>
+                    <div class="gift-id">#${gift.id}</div>
+                </div>
+                <div class="gift-bottom">
+                    <div class="gift-price">
+                        <img src="Ton.png" class="ton-icon" alt="TON" style="width: 14px; height: 14px;">
+                        ${gift.price} TON
+                    </div>
+                    <button class="btn-buy">Купить</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // ==========================================
+    // --- ВЫЕЗЖАЮЩАЯ ШТОРКА ДЕТАЛЕЙ ---
+    // ==========================================
+    function openGiftSheet(gift) {
+        currentNft = gift;
+        
+        document.getElementById('sheetGiftImage').src = gift.image;
+        document.getElementById('sheetGiftName').innerText = `${gift.name} #${gift.id}`;
+        document.getElementById('sheetGiftCollection').innerText = gift.collection;
+        document.getElementById('sheetGiftPrice').innerText = gift.price;
+        
+        const attrsContainer = document.getElementById('sheetGiftAttributes');
+        attrsContainer.innerHTML = `
+            <div class="sheet-attr-card">
+                <span class="sheet-attr-label">Model</span>
+                <span class="sheet-attr-value">${gift.model || '-'}</span>
+            </div>
+            <div class="sheet-attr-card">
+                <span class="sheet-attr-label">Backdrop</span>
+                <span class="sheet-attr-value">${gift.back || '-'}</span>
+            </div>
+            <div class="sheet-attr-card">
+                <span class="sheet-attr-label">Symbol</span>
+                <span class="sheet-attr-value">${gift.symbol || '-'}</span>
+            </div>
+        `;
+        
+        document.getElementById('giftSheetOverlay').classList.add('active');
+    }
+
+    function closeGiftSheet(e) {
+        if (e.target.classList.contains('gift-sheet-overlay') || e.target.closest('.sheet-close-btn')) {
+            document.getElementById('giftSheetOverlay').classList.remove('active');
+        }
+    }
+
+    function buyGiftSheet() {
+        alert(`Вы начали покупку: ${currentNft.name} за ${currentNft.price} TON!`);
+        document.getElementById('giftSheetOverlay').classList.remove('active');
+    }
+
+    // ==========================================
+    // --- ЛОГИКА ФИЛЬТРОВ ---
+    // ==========================================
+    function openFilter(type) {
+        currentFilterType = type;
+        const overlay = document.getElementById('filterOverlay');
+        const title = document.getElementById('sheetTitle');
+        const optionsContainer = document.getElementById('sheetOptions');
+        
+        const titles = { collection: 'Коллекция', model: 'Модель', back: 'Фон', symbol: 'Символ' };
+        title.innerText = titles[type];
+
+        const uniqueValues = [...new Set(giftsData.map(g => g[type]).filter(Boolean))].sort();
+
+        optionsContainer.innerHTML = uniqueValues.map(val => `
+            <label class="sheet-option">
+                <span>${val}</span>
+                <input type="checkbox" value="${val}" ${activeFilters[type].includes(val) ? 'checked' : ''}>
+                <div class="check-box"></div>
+            </label>
+        `).join('');
+
+        overlay.classList.add('active');
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active-filter'));
+        event.currentTarget.classList.add('active-filter');
+    }
+
+    function closeFilter(e) {
+        if (e.target.classList.contains('filter-sheet-overlay') || e.target.closest('.sheet-close') || e.target.classList.contains('btn-apply')) {
+            document.getElementById('filterOverlay').classList.remove('active');
+            if (activeFilters[currentFilterType].length === 0) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    if (btn.innerText.includes(document.getElementById('sheetTitle').innerText.substring(0,4))) {
+                        btn.classList.remove('active-filter');
+                    }
+                });
+            }
+        }
+    }
+
+    function applyFilters() {
+        const checkboxes = document.querySelectorAll('#sheetOptions input[type="checkbox"]');
+        const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+        activeFilters[currentFilterType] = selected;
+        renderGifts();
+        document.getElementById('filterOverlay').classList.remove('active');
+    }
+
+    function clearCurrentFilter() {
+        activeFilters[currentFilterType] = [];
+        document.querySelectorAll('#sheetOptions input[type="checkbox"]').forEach(cb => cb.checked = false);
+        renderGifts();
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active-filter'));
+    }
+
+    function filterSheetOptions() {
+        const query = document.getElementById('sheetSearchInput').value.toLowerCase();
+        const options = document.querySelectorAll('#sheetOptions .sheet-option');
+        options.forEach(opt => {
+            const text = opt.querySelector('span').innerText.toLowerCase();
+            opt.style.display = text.includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    // ==========================================
+    // --- ОСТАЛЬНАЯ ЛОГИКА ---
+    // ==========================================
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            renderGifts();
+            document.getElementById('welcome-screen').classList.add('hidden');
+        }, 1000);
+    });
+
+    function switchTab(tabId, element) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+        if(tabId === 'support') {
+            setTimeout(() => { const msgs = document.getElementById('chat-messages'); msgs.scrollTop = msgs.scrollHeight; }, 50);
+        }
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        const chatMessages = document.getElementById('chat-messages');
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        chatMessages.insertAdjacentHTML('beforeend', `<div class="message outgoing">${text}<span class="message-time">${time}</span></div>`);
+        input.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        setTimeout(() => {
+            const replies = ["Ваше сообщение получено. Оператор скоро ответит.", "Мы уже изучаем ваш вопрос.", "Спасибо за обращение!"];
+            const randomReply = replies[Math.floor(Math.random() * replies.length)];
+            chatMessages.insertAdjacentHTML('beforeend', `<div class="message incoming">${randomReply}<span class="message-time">${time}</span></div>`);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 1500);
+    }
+    function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
+</script>
+
+</body>
+</html>
